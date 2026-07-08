@@ -46,5 +46,17 @@ if [ -n "$TOPICS" ]; then
 JSON
 fi
 
+
+echo "==> branches: dev (default, push-protected) + main (PR + CI gated)"
+SHA=$(gh api "repos/$ORG/$NAME/git/refs/heads/main" -q .object.sha)
+gh api -X POST "repos/$ORG/$NAME/git/refs" -f ref=refs/heads/dev -f sha="$SHA" >/dev/null
+gh api -X PUT "repos/$ORG/$NAME/branches/main/protection" --input - >/dev/null <<'PJSON'
+{"required_status_checks":{"strict":true,"checks":[{"context":"test"}]},"enforce_admins":false,"required_pull_request_reviews":{"required_approving_review_count":0},"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}
+PJSON
+gh api -X PUT "repos/$ORG/$NAME/branches/dev/protection" --input - >/dev/null <<'PJSON'
+{"required_status_checks":null,"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}
+PJSON
+gh api -X PATCH "repos/$ORG/$NAME" -F default_branch=dev >/dev/null
+
 echo "==> done: https://github.com/$ORG/$NAME"
 echo "REMINDER: add NPM_TOKEN secret for releases:  gh secret set NPM_TOKEN -R $ORG/$NAME"
